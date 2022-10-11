@@ -2684,6 +2684,37 @@ RSpec.describe TopicsController do
       expect(response.status).to eq(200)
     end
 
+    context "with mentions" do
+      fab!(:post) { Fabricate(:post, user: post_author1) }
+      fab!(:topic) { post.topic }
+      fab!(:post2) { Fabricate(:post, user: post_author2, topic: topic) }
+
+      it "returns mentions" do
+        post2.raw = "I am mentioning mentioning mnentioning @#{post_author1.username}."
+        post2.save!
+
+        get "/t/#{topic.slug}/#{topic.id}.json"
+
+        expect(response.status).to eq(200)
+
+        json = response.parsed_body
+        expect(json["post_stream"]["posts"][1]["mentioned_users"].length).to be(1)
+
+        mentioned_user = json["post_stream"]["posts"][1]["mentioned_users"][0]
+        expect(mentioned_user["id"]).to be(post_author1.id)
+        expect(mentioned_user["name"]).to eq(post_author1.name)
+        expect(mentioned_user["username"]).to eq(post_author1.username)
+      end
+    end
+
+    it "returns mentions with status if user status is enabled" do
+
+    end
+
+    it "doesn't return status on mentions if user status is disabled" do
+
+    end
+
     describe "has_escaped_fragment?" do
       context "when the SiteSetting is disabled" do
         it "uses the application layout even with an escaped fragment param" do
