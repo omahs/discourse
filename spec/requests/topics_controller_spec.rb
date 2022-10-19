@@ -2687,12 +2687,14 @@ RSpec.describe TopicsController do
     context "with mentions" do
       fab!(:post) { Fabricate(:post, user: post_author1) }
       fab!(:topic) { post.topic }
-      fab!(:post2) { Fabricate(:post, user: post_author2, topic: topic) }
+      fab!(:post2) { Fabricate(
+        :post,
+        user: post_author2,
+        topic: topic,
+        raw: "I am mentioning @#{post_author1.username}."
+      ) }
 
       it "returns mentions" do
-        post2.raw = "I am mentioning mentioning mnentioning @#{post_author1.username}."
-        post2.save!
-
         get "/t/#{topic.slug}/#{topic.id}.json"
 
         expect(response.status).to eq(200)
@@ -2705,14 +2707,36 @@ RSpec.describe TopicsController do
         expect(mentioned_user["name"]).to eq(post_author1.name)
         expect(mentioned_user["username"]).to eq(post_author1.username)
       end
-    end
 
-    it "returns mentions with status if user status is enabled" do
+      it "doesn't return status on mentions by default" do
+        post_author1.set_status!("off to dentist", "tooth")
 
-    end
+        get "/t/#{topic.slug}/#{topic.id}.json"
 
-    it "doesn't return status on mentions if user status is disabled" do
+        expect(response.status).to eq(200)
 
+        json = response.parsed_body
+        expect(json["post_stream"]["posts"][1]["mentioned_users"].length).to be(1)
+        status = json["post_stream"]["posts"][1]["mentioned_users"][0]["status"]
+        expect(status).to be_nil
+      end
+
+      it "returns mentions with status if user status is enabled" do
+        SiteSetting.enable_user_status = true
+        post_author1.set_status!("off to dentist", "tooth")
+
+        get "/t/#{topic.slug}/#{topic.id}.json"
+
+        expect(response.status).to eq(200)
+
+        json = response.parsed_body
+        expect(json["post_stream"]["posts"][1]["mentioned_users"].length).to be(1)
+
+        status = json["post_stream"]["posts"][1]["mentioned_users"][0]["status"]
+        expect(status).to be_present
+        expect(status["emoji"]).to eq(post_author1.user_status.emoji)
+        expect(status["description"]).to eq(post_author1.user_status.description)
+      end
     end
 
     describe "has_escaped_fragment?" do
