@@ -82,9 +82,11 @@ export default class PostCooked {
     if (!isComposerPreview) {
       const post = helper.getModel();
       this._trackMentionedUsersStatus(post);
-      post.mentioned_users.forEach((user) =>
-        this._applyFlairOnMention(cookedDiv, user)
-      );
+      if (post.mentioned_users) {
+        post.mentioned_users.forEach((user) =>
+          this._applyFlairOnMention(cookedDiv, user)
+        );
+      }
     }
   }
 
